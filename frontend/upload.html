@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF 업로드 - PDF Learner</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* 업로드 페이지 전용 스타일 */
+        .upload-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 20px;
+        }
+        
+        .upload-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .upload-header h1 {
+            font-size: 2.5rem;
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+        
+        .upload-header p {
+            font-size: 1.2rem;
+            color: #7f8c8d;
+            line-height: 1.6;
+        }
+        
+        .drop-zone {
+            border: 3px dashed #bdc3c7;
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+        
+        .drop-zone:hover,
+        .drop-zone.drag-over {
+            border-color: #3498db;
+            background: rgba(52, 152, 219, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .drop-zone-content {
+            pointer-events: none;
+        }
+        
+        .drop-zone-content * {
+            pointer-events: none;
+        }
+        
+        #upload-btn {
+            pointer-events: auto;
+        }
+        
+        .drop-zone-icon {
+            font-size: 4rem;
+            color: #bdc3c7;
+            margin-bottom: 1rem;
+            transition: color 0.3s ease;
+        }
+        
+        .drop-zone:hover .drop-zone-icon,
+        .drop-zone.drag-over .drop-zone-icon {
+            color: #3498db;
+        }
+        
+        .drop-zone h3 {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        
+        .drop-zone p {
+            color: #7f8c8d;
+            margin-bottom: 1.5rem;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .upload-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #3498db;
+            display: block;
+        }
+        
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        
+        .upload-progress {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            display: none;
+        }
+        
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #3498db, #2ecc71);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .upload-queue {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .queue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .queue-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            border: 1px solid #ecf0f1;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            background: #f8f9fa;
+        }
+        
+        .queue-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .queue-item.success {
+            border-color: #2ecc71;
+            background: rgba(46, 204, 113, 0.1);
+        }
+        
+        .queue-item.error {
+            border-color: #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+        }
+        
+        .queue-item.uploading {
+            border-color: #3498db;
+            background: rgba(52, 152, 219, 0.1);
+        }
+        
+        .file-icon {
+            font-size: 1.5rem;
+            color: #e74c3c;
+        }
+        
+        .file-info {
+            flex: 1;
+        }
+        
+        .file-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.25rem;
+        }
+        
+        .file-size {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+        
+        .file-status {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .file-status.success {
+            color: #2ecc71;
+        }
+        
+        .file-status.error {
+            color: #e74c3c;
+        }
+        
+        .file-status.uploading {
+            color: #3498db;
+        }
+        
+        .file-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .uploaded-files {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .files-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #7f8c8d;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+            opacity: 0.5;
+        }
+        
+        .processing-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            background: #f39c12;
+            color: white;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .tips {
+            background: #ecf0f1;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+        
+        .tips h4 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .tips ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .tips li {
+            color: #7f8c8d;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .tips li i {
+            color: #27ae60;
+            width: 16px;
+        }
+        
+        @media (max-width: 768px) {
+            .upload-container {
+                padding: 0 15px;
+            }
+            
+            .upload-header h1 {
+                font-size: 2rem;
+            }
+            
+            .drop-zone {
+                padding: 2rem 1rem;
+            }
+            
+            .drop-zone-icon {
+                font-size: 3rem;
+            }
+            
+            .upload-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .queue-item,
+            .doc-card {
+                flex-direction: column;
+                text-align: center;
+                gap: 0.5rem;
+            }
+            
+            .file-actions,
+            .doc-actions {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <div class="container">
+            <div class="logo">
+                <i class="fas fa-book-reader"></i>
+                <h1>PDF Learner</h1>
+            </div>
+            <nav class="nav">
+                <a href="index.html" class="nav-link">홈</a>
+                <a href="upload.html" class="nav-link active">업로드</a>
+                <a href="study.html" class="nav-link">학습</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 메인 콘텐츠 -->
+    <main class="main">
+        <div class="upload-container">
+            <!-- 업로드 헤더 -->
+            <div class="upload-header">
+                <h1><i class="fas fa-cloud-upload-alt"></i> PDF 업로드</h1>
+                <p>학습하고 싶은 PDF 파일을 업로드하면 AI가 자동으로 분석하여 맞춤형 커리큘럼을 만들어드립니다.</p>
+            </div>
+            
+            <!-- 업로드 통계 -->
+            <div class="upload-stats">
+                <div class="stat-card">
+                    <span class="stat-number" id="total-files">0</span>
+                    <div class="stat-label">총 업로드 파일</div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="total-size">0 MB</span>
+                    <div class="stat-label">총 용량</div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="processed-files">0</span>
+                    <div class="stat-label">처리 완료</div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="processing-files">0</span>
+                    <div class="stat-label">처리 중</div>
+                </div>
+            </div>
+            
+            <!-- 드래그 앤 드롭 영역 -->
+            <div class="drop-zone" id="drop-zone">
+                <div class="drop-zone-content">
+                    <i class="fas fa-file-pdf drop-zone-icon"></i>
+                    <h3>PDF 파일을 여기에 끌어다 놓으세요</h3>
+                    <p>또는 아래 버튼을 클릭하여 파일을 선택하세요</p>
+                    <button class="btn btn-primary" id="upload-btn">
+                        <i class="fas fa-folder-open"></i>
+                        파일 선택하기
+                    </button>
+                </div>
+                <input type="file" id="file-input" class="file-input" multiple accept=".pdf">
+            </div>
+            
+            <!-- 업로드 팁 -->
+            <div class="tips">
+                <h4><i class="fas fa-lightbulb"></i> 업로드 팁</h4>
+                <ul>
+                    <li><i class="fas fa-check"></i> PDF 파일만 업로드 가능합니다</li>
+                    <li><i class="fas fa-check"></i> 파일 크기는 최대 50MB까지 지원합니다</li>
+                    <li><i class="fas fa-check"></i> 여러 파일을 한 번에 업로드할 수 있습니다</li>
+                    <li><i class="fas fa-check"></i> 텍스트가 포함된 PDF가 분석에 유리합니다</li>
+                    <li><i class="fas fa-check"></i> 업로드 후 AI 분석까지 1-2분 소요됩니다</li>
+                </ul>
+            </div>
+            
+            <!-- 업로드 진행 상황 -->
+            <div class="upload-progress" id="upload-progress">
+                <div class="progress-header">
+                    <h4><i class="fas fa-upload"></i> 업로드 진행 상황</h4>
+                    <span id="progress-text">0/0 완료</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div id="current-upload-file"></div>
+            </div>
+            
+            <!-- 업로드 대기열 -->
+            <div class="upload-queue" id="upload-queue" style="display: none;">
+                <div class="queue-header">
+                    <h4><i class="fas fa-list"></i> 업로드 대기열</h4>
+                    <button class="btn btn-small btn-secondary" onclick="clearQueue()">
+                        <i class="fas fa-trash"></i> 대기열 정리
+                    </button>
+                </div>
+                <div id="queue-items"></div>
+            </div>
+            
+            <!-- 업로드된 파일 목록 -->
+            <div class="uploaded-files">
+                <div class="files-header">
+                    <h4><i class="fas fa-file-alt"></i> 업로드된 파일</h4>
+                    <button class="btn btn-small btn-primary" onclick="refreshFileList()">
+                        <i class="fas fa-sync-alt"></i> 새로고침
+                    </button>
+                </div>
+                <div id="uploaded-files-list">
+                    <div class="empty-state">
+                        <i class="fas fa-folder-open"></i>
+                        <p>아직 업로드된 파일이 없습니다.</p>
+                        <small>위의 드래그 앤 드롭 영역을 이용해 첫 번째 PDF를 업로드해보세요!</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 푸터 -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <h3>PDF Learner</h3>
+                    <p>AI 기술로 더 효율적인 학습 경험을 제공합니다.</p>
+                </div>
+                <div class="footer-links">
+                    <h4>바로가기</h4>
+                    <ul>
+                        <li><a href="index.html">홈</a></li>
+                        <li><a href="study.html">학습하기</a></li>
+                        <li><a href="/docs" target="_blank">API 문서</a></li>
+                    </ul>
+                </div>
+                <div class="footer-tech">
+                    <h4>지원 형식</h4>
+                    <ul>
+                        <li>PDF (최대 50MB)</li>
+                        <li>텍스트 추출 가능</li>
+                        <li>이미지 포함 PDF</li>
+                        <li>다국어 지원</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 PDF Learner. AI로 더 스마트한 학습을.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="script.js"></script>
+    <script>
+        // 업로드 페이지 전용 변수
+        let uploadQueue = [];
+        let currentUploads = 0;
+        let totalUploads = 0;
+        let uploadStats = {
+            totalFiles: 0,
+            totalSize: 0,
+            processedFiles: 0,
+            processingFiles: 0
+        };
+
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            initUploadPageCustom();
+            loadUploadStats();
+            loadUploadedFiles();
+        });
+
+        // 업로드 페이지 전용 초기화 함수
+        function initUploadPageCustom() {
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('file-input');
+            const uploadBtn = document.getElementById('upload-btn');
+            
+            if (!dropZone || !fileInput) return;
+            
+            // 드래그 앤 드롭 이벤트
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+            
+            dropZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                if (!dropZone.contains(e.relatedTarget)) {
+                    dropZone.classList.remove('drag-over');
+                }
+            });
+            
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+                
+                const files = Array.from(e.dataTransfer.files);
+                handleFileSelection(files);
+            });
+            
+            // 드래그 앤 드롭 영역 클릭 시 파일 선택
+            dropZone.addEventListener('click', (e) => {
+                // 버튼 클릭이 아닌 경우에만 파일 선택
+                if (e.target !== uploadBtn && !uploadBtn.contains(e.target)) {
+                    fileInput.click();
+                }
+            });
+            
+            // 파일 선택 이벤트
+            fileInput.addEventListener('change', (e) => {
+                const files = Array.from(e.target.files);
+                handleFileSelection(files);
+                // 파일 선택 후 input 초기화
+                e.target.value = '';
+            });
+            
+            // 업로드 버튼 클릭
+            if (uploadBtn) {
+                uploadBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    fileInput.click();
+                });
+            }
+        }
+
+        // 업로드 통계 로드
+        async function loadUploadStats() {
+            try {
+                const data = await fetchDocuments();
+                const files = data.files || [];
+                
+                // API에서 제공하는 total_files 사용, 없으면 배열 길이 사용
+                uploadStats.totalFiles = data.total_files || files.length;
+                uploadStats.totalSize = files.reduce((sum, file) => sum + (file.size_mb || 0), 0);
+                uploadStats.processedFiles = files.filter(f => f.status === 'completed').length;
+                uploadStats.processingFiles = files.filter(f => f.status === 'uploaded' || f.status === 'processing').length;
+                
+                updateStatsDisplay();
+            } catch (error) {
+                console.error('Failed to load upload stats:', error);
+                // 오류 시에도 기본값으로 표시
+                uploadStats = {
+                    totalFiles: 0,
+                    totalSize: 0,
+                    processedFiles: 0,
+                    processingFiles: 0
+                };
+                updateStatsDisplay();
+            }
+        }
+
+        // 통계 표시 업데이트
+        function updateStatsDisplay() {
+            document.getElementById('total-files').textContent = uploadStats.totalFiles;
+            document.getElementById('total-size').textContent = uploadStats.totalSize.toFixed(1) + ' MB';
+            document.getElementById('processed-files').textContent = uploadStats.processedFiles;
+            document.getElementById('processing-files').textContent = uploadStats.processingFiles;
+        }
+
+        // 업로드된 파일 목록 로드
+        async function loadUploadedFiles() {
+            try {
+                const data = await fetchDocuments();
+                const files = data.files || [];
+                
+                const container = document.getElementById('uploaded-files-list');
+                
+                if (files.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-folder-open"></i>
+                            <p>아직 업로드된 파일이 없습니다.</p>
+                            <small>위의 드래그 앤 드롭 영역을 이용해 첫 번째 PDF를 업로드해보세요!</small>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const filesHtml = files.map(file => createUploadedFileCard(file)).join('');
+                container.innerHTML = filesHtml;
+                
+            } catch (error) {
+                console.error('Failed to load uploaded files:', error);
+                showMessage('파일 목록 로드에 실패했습니다.', 'error');
+            }
+        }
+
+        // 업로드된 파일 카드 생성
+        function createUploadedFileCard(file) {
+            const uploadDate = formatDate(file.upload_date);
+            const fileSize = typeof file.size_mb === 'number' ? file.size_mb.toFixed(2) : file.size_mb;
+            const status = file.status || 'uploaded';
+            
+            let statusBadge = '';
+            if (status === 'uploaded') {
+                statusBadge = '<span class="processing-indicator" style="background: #f39c12;"><i class="fas fa-clock"></i> 처리 대기</span>';
+            } else if (status === 'processing') {
+                statusBadge = '<span class="processing-indicator"><i class="fas fa-spinner fa-spin"></i> AI 분석 중</span>';
+            } else if (status === 'completed') {
+                statusBadge = '<span class="processing-indicator" style="background: #2ecc71;"><i class="fas fa-check"></i> 분석 완료</span>';
+            } else if (status === 'failed') {
+                statusBadge = '<span class="processing-indicator" style="background: #e74c3c;"><i class="fas fa-times"></i> 분석 실패</span>';
+            }
+            
+            return `
+                <div class="doc-card" data-filename="${file.filename}">
+                    <div class="doc-icon">
+                        <i class="fas fa-file-pdf"></i>
+                    </div>
+                    <div class="doc-info">
+                        <h4 class="doc-title" title="${file.filename}">${file.filename}</h4>
+                        <p class="doc-details">
+                            <span class="doc-size">${fileSize} MB</span>
+                            <span class="doc-date">${uploadDate}</span>
+                        </p>
+                        ${statusBadge}
+                    </div>
+                    <div class="doc-actions">
+                        ${status === 'completed' ? 
+                            `<button class="btn-small btn-primary" onclick="startLearning('${file.filename}')" title="학습 시작">
+                                <i class="fas fa-graduation-cap"></i>
+                                학습하기
+                            </button>` : ''
+                        }
+                        <button class="btn-small btn-secondary" onclick="downloadDocument('${file.filename}')" title="다운로드">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button class="btn-small btn-danger" onclick="deleteUploadedFile('${file.filename}')" title="삭제">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 파일 선택 처리 (script.js의 함수 오버라이드)
+        async function handleFileSelection(files) {
+            if (files.length === 0) return;
+            
+            // PDF 파일만 필터링
+            const pdfFiles = Array.from(files).filter(file => file.type === 'application/pdf');
+            
+            if (pdfFiles.length === 0) {
+                showMessage('PDF 파일만 업로드할 수 있습니다.', 'error');
+                return;
+            }
+            
+            if (pdfFiles.length !== files.length) {
+                showMessage(`${files.length - pdfFiles.length}개의 파일이 PDF가 아니어서 제외되었습니다.`, 'warning');
+            }
+            
+            // 업로드 대기열에 추가
+            addToUploadQueue(pdfFiles);
+            
+            // 업로드 시작
+            await processUploadQueue();
+        }
+
+        // 업로드 대기열에 파일 추가
+        function addToUploadQueue(files) {
+            files.forEach(file => {
+                const queueItem = {
+                    id: Date.now() + Math.random(),
+                    file: file,
+                    status: 'waiting', // waiting, uploading, success, error
+                    error: null
+                };
+                uploadQueue.push(queueItem);
+            });
+            
+            updateQueueDisplay();
+            document.getElementById('upload-queue').style.display = 'block';
+        }
+
+        // 대기열 표시 업데이트
+        function updateQueueDisplay() {
+            const container = document.getElementById('queue-items');
+            
+            const queueHtml = uploadQueue.map(item => {
+                const statusIcon = {
+                    waiting: 'clock',
+                    uploading: 'spinner fa-spin',
+                    success: 'check-circle',
+                    error: 'exclamation-circle'
+                };
+                
+                const statusText = {
+                    waiting: '대기 중',
+                    uploading: '업로드 중...',
+                    success: '업로드 완료',
+                    error: item.error || '업로드 실패'
+                };
+                
+                return `
+                    <div class="queue-item ${item.status}">
+                        <i class="fas fa-file-pdf file-icon"></i>
+                        <div class="file-info">
+                            <div class="file-name">${item.file.name}</div>
+                            <div class="file-size">${formatFileSize(item.file.size)}</div>
+                        </div>
+                        <div class="file-status ${item.status}">
+                            <i class="fas fa-${statusIcon[item.status]}"></i>
+                            ${statusText[item.status]}
+                        </div>
+                        ${item.status === 'waiting' ? 
+                            `<div class="file-actions">
+                                <button class="btn-small btn-danger" onclick="removeFromQueue('${item.id}')">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>` : ''
+                        }
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = queueHtml;
+        }
+
+        // 업로드 대기열 처리
+        async function processUploadQueue() {
+            if (currentUploads > 0) return; // 이미 업로드 중이면 대기
+            
+            const waitingItems = uploadQueue.filter(item => item.status === 'waiting');
+            if (waitingItems.length === 0) return;
+            
+            totalUploads = waitingItems.length;
+            currentUploads = 0;
+            
+            // 진행 상황 표시
+            document.getElementById('upload-progress').style.display = 'block';
+            updateProgressDisplay();
+            
+            for (const item of waitingItems) {
+                try {
+                    item.status = 'uploading';
+                    updateQueueDisplay();
+                    
+                    document.getElementById('current-upload-file').textContent = `업로드 중: ${item.file.name}`;
+                    
+                    // 직접 업로드 처리
+                    const formData = new FormData();
+                    formData.append('files', item.file);
+                    
+                    const response = await fetch(`${API_BASE_URL}/upload`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || '업로드에 실패했습니다.');
+                    }
+                    
+                    const result = await response.json();
+                    console.log('Upload success:', result);
+                    showMessage(`${item.file.name} 업로드 완료`, 'success');
+                    
+                    item.status = 'success';
+                    currentUploads++;
+                    
+                } catch (error) {
+                    console.error('Upload failed:', error);
+                    item.status = 'error';
+                    item.error = error.message;
+                    currentUploads++;
+                    showMessage(`${item.file.name} 업로드 실패: ${error.message}`, 'error');
+                }
+                
+                updateQueueDisplay();
+                updateProgressDisplay();
+            }
+            
+            // 업로드 완료 후 정리
+            setTimeout(() => {
+                document.getElementById('upload-progress').style.display = 'none';
+                // 통계와 파일 목록을 즉시 새로고침
+                loadUploadStats();
+                loadUploadedFiles();
+                
+                // 성공한 업로드가 있으면 성공 메시지 표시
+                const successCount = uploadQueue.filter(item => item.status === 'success').length;
+                if (successCount > 0) {
+                    showMessage(`${successCount}개 파일이 성공적으로 업로드되었습니다!`, 'success');
+                }
+            }, 1000);
+        }
+
+        // 진행 상황 업데이트
+        function updateProgressDisplay() {
+            const progress = totalUploads > 0 ? (currentUploads / totalUploads) * 100 : 0;
+            document.getElementById('progress-fill').style.width = progress + '%';
+            document.getElementById('progress-text').textContent = `${currentUploads}/${totalUploads} 완료`;
+        }
+
+        // 대기열에서 파일 제거
+        function removeFromQueue(itemId) {
+            uploadQueue = uploadQueue.filter(item => item.id !== itemId);
+            updateQueueDisplay();
+            
+            if (uploadQueue.length === 0) {
+                document.getElementById('upload-queue').style.display = 'none';
+            }
+        }
+
+        // 대기열 정리
+        function clearQueue() {
+            uploadQueue = uploadQueue.filter(item => item.status === 'uploading');
+            updateQueueDisplay();
+            
+            if (uploadQueue.length === 0) {
+                document.getElementById('upload-queue').style.display = 'none';
+            }
+        }
+
+        // 업로드된 파일 삭제
+        async function deleteUploadedFile(filename) {
+            if (!confirm(`'${filename}' 파일을 정말 삭제하시겠습니까?\n\n⚠️ 생성된 커리큘럼과 분석 데이터도 함께 삭제됩니다.`)) {
+                return;
+            }
+            
+            try {
+                await deleteDocument(filename);
+                // 삭제 후 즉시 통계와 파일 목록 새로고침
+                await loadUploadStats();
+                await loadUploadedFiles();
+                showMessage(`'${filename}' 파일이 삭제되었습니다.`, 'success');
+            } catch (error) {
+                console.error('Delete failed:', error);
+                showMessage(`파일 삭제에 실패했습니다: ${error.message}`, 'error');
+            }
+        }
+
+        // 파일 목록 새로고침
+        async function refreshFileList() {
+            try {
+                // 동시에 통계와 파일 목록 새로고침
+                await Promise.all([
+                    loadUploadStats(),
+                    loadUploadedFiles()
+                ]);
+                showMessage('파일 목록을 새로고침했습니다.', 'info');
+            } catch (error) {
+                console.error('Refresh failed:', error);
+                showMessage('새로고침에 실패했습니다.', 'error');
+            }
+        }
+
+    </script>
+</body>
+</html>

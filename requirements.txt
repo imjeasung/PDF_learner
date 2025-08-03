@@ -1,0 +1,26 @@
+# 웹 서버 및 API
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# PDF 처리
+PyMuPDF==1.23.5
+pandas==2.1.2
+
+# AI 및 자연어 처리
+openai==1.3.0
+langchain==0.0.350
+
+# 벡터 데이터베이스
+chromadb==0.4.15
+
+# 데이터베이스
+sqlalchemy==2.0.23
+
+# 환경 설정
+python-dotenv==1.0.0
+
+# 기타 유틸리티
+pathlib
+json5
+datetime
