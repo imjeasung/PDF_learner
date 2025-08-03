@@ -114,9 +114,15 @@ async def startup_event():
     logger.info("🚀 PDF Learner server started!")
 
 # 정적 파일 서빙 (CSS, JS, 이미지 등)
-app.mount("/static", StaticFiles(directory=STATIC_FOLDER), name="static")
-app.mount("/css", StaticFiles(directory="frontend/css"), name="css")
-app.mount("/js", StaticFiles(directory="frontend"), name="js")
+# 디렉토리가 존재하는 경우에만 마운트
+if os.path.exists(STATIC_FOLDER):
+    app.mount("/static", StaticFiles(directory=STATIC_FOLDER), name="static")
+
+if os.path.exists("frontend/css"):
+    app.mount("/css", StaticFiles(directory="frontend/css"), name="css")
+
+if os.path.exists("frontend"):
+    app.mount("/js", StaticFiles(directory="frontend"), name="js")
 
 # 루트 경로의 정적 파일들을 위한 추가 마운트
 from fastapi.responses import FileResponse
@@ -657,19 +663,27 @@ async def get_favicon():
 # =================== 서버 실행 ===================
 
 if __name__ == "__main__":
-    # 환경변수에서 호스트와 포트 가져오기
-    host = os.getenv("HOST", "localhost")
+    # 환경변수에서 호스트와 포트 가져오기 (Koyeb 배포용)
+    host = os.getenv("HOST", "0.0.0.0")  # Koyeb에서는 0.0.0.0이 필요
     port = int(os.getenv("PORT", "8000"))
-    debug = os.getenv("DEBUG", "True").lower() == "true"
+    debug = os.getenv("DEBUG", "False").lower() == "true"  # 프로덕션에서는 기본적으로 False
     
-    print(f"Server URL: http://{host}:{port}")
-    print(f"API Docs: http://{host}:{port}/docs")
-    print(f"Debug Mode: {debug}")
+    # Koyeb 환경에서는 reload 비활성화
+    is_production = os.getenv("KOYEB_PUBLIC_DOMAIN") is not None
+    
+    print(f"🚀 Starting PDF Learner Server...")
+    print(f"📍 Host: {host}")
+    print(f"🔌 Port: {port}")
+    print(f"🛠️ Debug Mode: {debug}")
+    print(f"📊 API Docs: http://localhost:{port}/docs")
+    print(f"🌐 Server URL: http://0.0.0.0:{port}")
     
     # 서버 시작
     uvicorn.run(
         "main:app",
         host=host,
         port=port,
-        reload=debug  # 개발 중에는 파일 변경 시 자동 재시작
+        reload=debug and not is_production,  # 프로덕션에서는 reload 비활성화
+        access_log=True,
+        log_level="info" if not debug else "debug"
     )
