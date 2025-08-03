@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Learner - AI 학습 도우미</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <div class="container">
+            <div class="logo">
+                <i class="fas fa-book-reader"></i>
+                <h1>PDF Learner</h1>
+            </div>
+            <nav class="nav">
+                <a href="#home" class="nav-link active">홈</a>
+                <a href="upload.html" class="nav-link">업로드</a>
+                <a href="study.html" class="nav-link">학습</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 메인 콘텐츠 -->
+    <main class="main">
+        <!-- 히어로 섹션 -->
+        <section class="hero" id="home">
+            <div class="container">
+                <div class="hero-content">
+                    <h2 class="hero-title">
+                        AI와 함께하는 
+                        <span class="highlight">스마트 학습</span>
+                    </h2>
+                    <p class="hero-description">
+                        PDF 문서를 업로드하면 AI가 자동으로 목차를 생성하고 
+                        핵심 내용을 요약해드립니다. 질문하면 똑똑한 답변도 받을 수 있어요!
+                    </p>
+                    <div class="hero-buttons">
+                        <a href="upload.html" class="btn btn-primary">
+                            <i class="fas fa-upload"></i>
+                            PDF 업로드하기
+                        </a>
+                        <button class="btn btn-secondary" onclick="showDemo()">
+                            <i class="fas fa-play"></i>
+                            데모 보기
+                        </button>
+                    </div>
+                </div>
+                <div class="hero-image">
+                    <div class="hero-graphic">
+                        <i class="fas fa-file-pdf pdf-icon"></i>
+                        <i class="fas fa-arrow-right arrow-icon"></i>
+                        <i class="fas fa-robot ai-icon"></i>
+                        <i class="fas fa-arrow-right arrow-icon"></i>
+                        <i class="fas fa-graduation-cap study-icon"></i>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 기능 소개 섹션 -->
+        <section class="features" id="features">
+            <div class="container">
+                <h2 class="section-title">주요 기능</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-file-upload"></i>
+                        </div>
+                        <h3>간편한 업로드</h3>
+                        <p>PDF 파일을 드래그 앤 드롭으로 쉽게 업로드하세요. 여러 파일도 한 번에 가능합니다.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-list"></i>
+                        </div>
+                        <h3>자동 목차 생성</h3>
+                        <p>AI가 문서 내용을 분석하여 학습에 최적화된 목차와 커리큘럼을 자동으로 만듭니다.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <h3>스마트 요약</h3>
+                        <p>각 섹션의 핵심 내용을 요약하고 중요한 키워드와 예상 질문을 제공합니다.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <h3>AI 질의응답</h3>
+                        <p>문서 내용에 대해 궁금한 점을 질문하면 AI가 정확한 답변을 제공합니다.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 서버 상태 섹션 -->
+        <section class="status" id="status">
+            <div class="container">
+                <h2 class="section-title">서버 상태</h2>
+                <div class="status-grid">
+                    <div class="status-card" id="server-status">
+                        <div class="status-icon">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <h3>서버 연결</h3>
+                        <p class="status-text">확인 중...</p>
+                        <div class="status-indicator checking"></div>
+                    </div>
+                    
+                    <div class="status-card" id="ai-status">
+                        <div class="status-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h3>AI 서비스</h3>
+                        <p class="status-text">확인 중...</p>
+                        <div class="status-indicator checking"></div>
+                    </div>
+                    
+                    <div class="status-card" id="upload-status">
+                        <div class="status-icon">
+                            <i class="fas fa-folder"></i>
+                        </div>
+                        <h3>업로드된 파일</h3>
+                        <p class="status-text">로딩 중...</p>
+                        <div class="status-indicator checking"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 최근 문서 섹션 -->
+        <section class="recent-docs" id="recent">
+            <div class="container">
+                <h2 class="section-title">최근 문서</h2>
+                <div class="docs-container" id="recent-docs-container">
+                    <div class="loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>문서 목록을 불러오는 중...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 푸터 -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <h3>PDF Learner</h3>
+                    <p>AI 기술로 더 효율적인 학습 경험을 제공합니다.</p>
+                </div>
+                <div class="footer-links">
+                    <h4>바로가기</h4>
+                    <ul>
+                        <li><a href="upload.html">PDF 업로드</a></li>
+                        <li><a href="study.html">학습하기</a></li>
+                        <li><a href="/docs" target="_blank">API 문서</a></li>
+                    </ul>
+                </div>
+                <div class="footer-tech">
+                    <h4>기술 스택</h4>
+                    <ul>
+                        <li>Python + FastAPI</li>
+                        <li>OpenAI GPT</li>
+                        <li>ChromaDB</li>
+                        <li>PyMuPDF</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 PDF Learner. AI로 더 스마트한 학습을.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 데모 모달 -->
+    <div id="demo-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>PDF Learner 데모</h3>
+                <span class="close" onclick="closeDemo()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="demo-steps">
+                    <div class="demo-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h4>PDF 업로드</h4>
+                            <p>학습하고 싶은 PDF 파일을 업로드합니다.</p>
+                        </div>
+                    </div>
+                    <div class="demo-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h4>AI 분석</h4>
+                            <p>AI가 내용을 분석하여 목차와 요약을 생성합니다.</p>
+                        </div>
+                    </div>
+                    <div class="demo-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h4>학습 시작</h4>
+                            <p>생성된 커리큘럼으로 효율적으로 학습합니다.</p>
+                        </div>
+                    </div>
+                    <div class="demo-step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h4>질의응답</h4>
+                            <p>궁금한 점을 AI에게 질문하여 답변을 받습니다.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" onclick="window.location.href='upload.html'">
+                        지금 시작하기
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="js/script.js"></script>
+    <script>
+        // 페이지 로드 시 실행
+        document.addEventListener('DOMContentLoaded', function() {
+            checkServerStatus();
+            loadRecentDocuments();
+        });
+
+        // 서버 상태 확인
+        async function checkServerStatus() {
+            try {
+                // 서버 연결 확인
+                const response = await fetch(`${window.location.origin}/health`);
+                const data = await response.json();
+                
+                updateStatusCard('server-status', 'online', '서버 정상 작동');
+                
+                // AI 서비스 상태 (API 키 확인)
+                if (data.status === 'healthy') {
+                    updateStatusCard('ai-status', 'online', 'AI 서비스 준비됨');
+                } else {
+                    updateStatusCard('ai-status', 'warning', 'AI 설정 확인 필요');
+                }
+                
+            } catch (error) {
+                updateStatusCard('server-status', 'offline', '서버 연결 실패');
+                updateStatusCard('ai-status', 'offline', 'AI 서비스 중단');
+                console.error('Server status check failed:', error);
+            }
+        }
+
+        // 최근 문서 목록 로드
+        async function loadRecentDocuments() {
+            try {
+                const response = await fetch(`${window.location.origin}/files`);
+                const data = await response.json();
+                
+                const container = document.getElementById('recent-docs-container');
+                
+                if (data.files && data.files.length > 0) {
+                    updateStatusCard('upload-status', 'online', `${data.total_files}개 파일`);
+                    displayRecentDocs(data.files.slice(0, 6)); // 최대 6개만 표시
+                } else {
+                    updateStatusCard('upload-status', 'warning', '업로드된 파일 없음');
+                    container.innerHTML = `
+                        <div class="no-docs">
+                            <i class="fas fa-file-plus"></i>
+                            <p>아직 업로드된 문서가 없습니다.</p>
+                            <a href="upload.html" class="btn btn-primary">첫 번째 PDF 업로드하기</a>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                updateStatusCard('upload-status', 'offline', '파일 목록 로드 실패');
+                console.error('Failed to load recent documents:', error);
+            }
+        }
+
+        // 상태 카드 업데이트
+        function updateStatusCard(cardId, status, text) {
+            const card = document.getElementById(cardId);
+            const statusText = card.querySelector('.status-text');
+            const indicator = card.querySelector('.status-indicator');
+            
+            statusText.textContent = text;
+            indicator.className = `status-indicator ${status}`;
+        }
+
+        // 최근 문서 표시
+        function displayRecentDocs(files) {
+            const container = document.getElementById('recent-docs-container');
+            
+            const docsHtml = files.map(file => `
+                <div class="doc-card">
+                    <div class="doc-icon">
+                        <i class="fas fa-file-pdf"></i>
+                    </div>
+                    <div class="doc-info">
+                        <h4 class="doc-title">${file.filename}</h4>
+                        <p class="doc-size">${file.size_mb} MB</p>
+                    </div>
+                    <div class="doc-actions">
+                        <button class="btn-small btn-primary" onclick="startStudy('${file.filename}')">
+                            학습하기
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = docsHtml;
+        }
+
+        // 학습 시작
+        function startStudy(filename) {
+            window.location.href = `study.html?file=${encodeURIComponent(filename)}`;
+        }
+
+        // 데모 모달 함수들
+        function showDemo() {
+            document.getElementById('demo-modal').style.display = 'block';
+        }
+
+        function closeDemo() {
+            document.getElementById('demo-modal').style.display = 'none';
+        }
+
+        // 모달 외부 클릭 시 닫기
+        window.onclick = function(event) {
+            const modal = document.getElementById('demo-modal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
