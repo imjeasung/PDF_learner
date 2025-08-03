@@ -864,8 +864,8 @@
         // 커리큘럼 로드
         async function loadCurriculum(filename) {
             try {
-                // 실제 API 호출
-                const response = await fetch(`http://localhost:8000/curriculum/${encodeURIComponent(filename)}`);
+                // API 호출 (배포환경 대응)
+                const response = await fetch(`/curriculum/${encodeURIComponent(filename)}`);
                 
                 if (!response.ok) {
                     throw new Error(`커리큘럼을 찾을 수 없습니다: ${response.status}`);
@@ -1105,8 +1105,8 @@
             addTypingIndicator();
             
             try {
-                // 실제 API 호출
-                const response = await fetch('http://localhost:8000/chat', {
+                // API 호출 (배포환경 대응)
+                const response = await fetch('/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
