@@ -360,30 +360,6 @@ async function downloadDocument(filename) {
     }
 }
 
-/**
- * 문서 삭제
- */
-async function deleteDocument(filename) {
-    if (!confirm(`'${filename}' 파일을 정말 삭제하시겠습니까?`)) {
-        return;
-    }
-    
-    try {
-        await apiCall(`/delete/${encodeURIComponent(filename)}`, {
-            method: 'DELETE'
-        });
-        
-        showMessage('문서가 삭제되었습니다.', 'success');
-        
-        // 문서 목록 새로고침
-        const data = await fetchDocuments();
-        updateDocumentsList(data.files);
-        updateUploadStatus(data.total_files);
-        
-    } catch (error) {
-        showMessage(`삭제 실패: ${error.message}`, 'error');
-    }
-}
 
 // ===== 상태 업데이트 함수들 =====
 

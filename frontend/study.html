@@ -614,6 +614,9 @@
                 <a href="index.html" class="nav-link">홈</a>
                 <a href="upload.html" class="nav-link">업로드</a>
                 <a href="study.html" class="nav-link active">학습</a>
+                <button class="nav-link settings-btn" onclick="window.location.href='index.html#settings'">
+                    <i class="fas fa-cog"></i> 설정
+                </button>
             </nav>
         </div>
     </header>
@@ -759,12 +762,23 @@
         // 문서 목록 로드
         async function loadDocumentList() {
             try {
+                console.log('Loading document list...');
                 const data = await fetchDocuments();
+                console.log('Received data:', data);
+                
                 const select = document.getElementById('document-select');
                 
                 // 기존 옵션 제거 (첫 번째 제외)
                 while (select.children.length > 1) {
                     select.removeChild(select.lastChild);
+                }
+                
+                // 데이터 검증 및 안전한 처리
+                if (!data || !data.files || !Array.isArray(data.files)) {
+                    console.error('Invalid data structure:', data);
+                    console.error('Data type:', typeof data);
+                    console.error('Files type:', typeof data?.files);
+                    throw new Error('문서 목록 데이터가 올바르지 않습니다.');
                 }
                 
                 // 처리 완료된 문서만 표시
@@ -793,6 +807,22 @@
                 
             } catch (error) {
                 console.error('Failed to load document list:', error);
+                console.error('Error details:', {
+                    message: error.message,
+                    stack: error.stack,
+                    data: error.data || 'No data available'
+                });
+                
+                // 안전한 기본 옵션 추가
+                const select = document.getElementById('document-select');
+                if (select) {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = '문서 목록 로드 실패';
+                    option.disabled = true;
+                    select.appendChild(option);
+                }
+                
                 showMessage('문서 목록을 불러오는데 실패했습니다.', 'error');
             }
         }
@@ -1004,12 +1034,17 @@
             
             // 콘텐츠 생성 (실제로는 API에서 받아옴)
             setTimeout(() => {
+                // 현재 섹션의 완료 상태 확인
+                const isCompleted = completedSections.has(section.section_id);
+                const buttonText = isCompleted ? '<i class="fas fa-undo"></i> 완료 해제' : '<i class="fas fa-check"></i> 완료 표시';
+                const buttonStyle = isCompleted ? 'background: #e67e22 !important; border-color: #d35400 !important;' : '';
+                
                 const contentHtml = `
                     <div class="content-header">
                         <h2 class="content-title">${section.title}</h2>
                         <div class="content-actions">
-                            <button class="btn btn-small btn-secondary" onclick="markAsCompleted('${section.section_id}')">
-                                <i class="fas fa-check"></i> 완료 표시
+                            <button class="btn btn-small btn-secondary" onclick="markAsCompleted('${section.section_id}')" style="${buttonStyle}">
+                                ${buttonText}
                             </button>
                         </div>
                     </div>
@@ -1048,16 +1083,66 @@
             }, 800);
         }
 
-        // 섹션 완료 표시
+        // 완료된 섹션 추적
+        let completedSections = new Set();
+        
+        // 섹션 완료 토글
         function markAsCompleted(sectionId) {
             const progressEl = document.getElementById(`progress-${sectionId}`);
-            if (progressEl) {
+            if (!progressEl) return;
+            
+            // 현재 완료 상태 확인
+            const isCompleted = completedSections.has(sectionId);
+            
+            if (isCompleted) {
+                // 완료 해제
+                completedSections.delete(sectionId);
+                progressEl.classList.remove('completed');
+                
+                // 현재 보고 있는 섹션이면 'current' 클래스 추가
+                if (currentSection && currentSection.section_id === sectionId) {
+                    progressEl.classList.add('current');
+                    progressEl.innerHTML = '<i class="fas fa-eye"></i>';
+                } else {
+                    progressEl.classList.remove('current');
+                    // 섹션 번호 복원
+                    const sectionIndex = currentCurriculum.structure.findIndex(s => s.section_id === sectionId);
+                    progressEl.innerHTML = sectionIndex + 1;
+                }
+                
+                // 완료 버튼 텍스트 업데이트
+                updateCompleteButton(sectionId, false);
+                showMessage('완료 표시를 해제했습니다.', 'info');
+                
+            } else {
+                // 완료 표시
+                completedSections.add(sectionId);
                 progressEl.classList.remove('current');
                 progressEl.classList.add('completed');
                 progressEl.innerHTML = '<i class="fas fa-check"></i>';
+                
+                // 완료 버튼 텍스트 업데이트
+                updateCompleteButton(sectionId, true);
+                showMessage('섹션을 완료로 표시했습니다!', 'success');
             }
-            
-            showMessage('섹션을 완료로 표시했습니다!', 'success');
+        }
+        
+        // 완료 버튼 텍스트 업데이트
+        function updateCompleteButton(sectionId, isCompleted) {
+            if (currentSection && currentSection.section_id === sectionId) {
+                const button = document.querySelector('.content-actions button');
+                if (button) {
+                    if (isCompleted) {
+                        button.innerHTML = '<i class="fas fa-undo"></i> 완료 해제';
+                        button.style.background = '#e67e22';
+                        button.style.borderColor = '#d35400';
+                    } else {
+                        button.innerHTML = '<i class="fas fa-check"></i> 완료 표시';
+                        button.style.background = '#3498db';
+                        button.style.borderColor = '#2980b9';
+                    }
+                }
+            }
         }
 
         // 채팅 이벤트 설정

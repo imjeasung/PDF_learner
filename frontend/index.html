@@ -19,6 +19,9 @@
                 <a href="#home" class="nav-link active">홈</a>
                 <a href="upload.html" class="nav-link">업로드</a>
                 <a href="study.html" class="nav-link">학습</a>
+                <button class="nav-link settings-btn" onclick="openSettingsModal()">
+                    <i class="fas fa-cog"></i> 설정
+                </button>
             </nav>
         </div>
     </header>
@@ -228,6 +231,82 @@
         </div>
     </div>
 
+    <!-- 설정 모달 -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-cog"></i> AI 모델 설정</h3>
+                <span class="close" onclick="closeSettingsModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="settings-form">
+                    <div class="settings-section">
+                        <h4>텍스트 생성 모델</h4>
+                        <select id="text-model-select" class="settings-select">
+                            <option value="">로딩 중...</option>
+                        </select>
+                        <p class="settings-description">커리큘럼 생성과 질의응답에 사용되는 모델입니다.</p>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h4>임베딩 모델</h4>
+                        <select id="embedding-model-select" class="settings-select">
+                            <option value="">로딩 중...</option>
+                        </select>
+                        <p class="settings-description">문서 검색과 유사도 계산에 사용되는 모델입니다.</p>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h4>최대 토큰 수</h4>
+                        <div class="range-container">
+                            <input type="range" id="max-tokens" min="100" max="4000" step="100" class="settings-range">
+                            <span id="max-tokens-value" class="range-value">1000</span>
+                        </div>
+                        <p class="settings-description">AI 응답의 최대 길이를 제어합니다.</p>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h4>창의성 (Temperature)</h4>
+                        <div class="range-container">
+                            <input type="range" id="temperature" min="0" max="1" step="0.1" class="settings-range">
+                            <span id="temperature-value" class="range-value">0.7</span>
+                        </div>
+                        <p class="settings-description">낮을수록 일관된 답변, 높을수록 창의적인 답변을 생성합니다.</p>
+                    </div>
+                </div>
+                
+                <div class="current-settings">
+                    <h4>현재 설정</h4>
+                    <div class="settings-info">
+                        <div class="info-item">
+                            <span class="info-label">제공업체:</span>
+                            <span id="current-provider" class="info-value">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">텍스트 모델:</span>
+                            <span id="current-text-model" class="info-value">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">임베딩 모델:</span>
+                            <span id="current-embedding-model" class="info-value">-</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="loadCurrentSettings()">
+                        <i class="fas fa-refresh"></i> 새로고침
+                    </button>
+                    <button class="btn btn-primary" onclick="saveSettings()">
+                        <i class="fas fa-save"></i> 설정 저장
+                    </button>
+                </div>
+                
+                <div id="settings-status" class="settings-status"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript -->
     <script src="js/script.js"></script>
     <script>
@@ -338,10 +417,179 @@
 
         // 모달 외부 클릭 시 닫기
         window.onclick = function(event) {
-            const modal = document.getElementById('demo-modal');
-            if (event.target === modal) {
-                modal.style.display = 'none';
+            const demoModal = document.getElementById('demo-modal');
+            const settingsModal = document.getElementById('settings-modal');
+            if (event.target === demoModal) {
+                demoModal.style.display = 'none';
             }
+            if (event.target === settingsModal) {
+                settingsModal.style.display = 'none';
+            }
+        }
+
+        // 설정 모달 관련 함수들
+        let availableModels = null;
+        let currentSettings = null;
+
+        async function openSettingsModal() {
+            document.getElementById('settings-modal').style.display = 'block';
+            await loadAvailableModels();
+            await loadCurrentSettings();
+            setupRangeInputs();
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').style.display = 'none';
+        }
+
+        async function loadAvailableModels() {
+            try {
+                const response = await fetch(`${window.location.origin}/api/models`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    availableModels = data.data;
+                    populateModelSelects();
+                } else {
+                    showSettingsStatus('모델 목록 로드 실패: ' + data.message, 'error');
+                }
+            } catch (error) {
+                showSettingsStatus('모델 목록 로드 실패: ' + error.message, 'error');
+                console.error('Failed to load models:', error);
+            }
+        }
+
+        async function loadCurrentSettings() {
+            try {
+                const response = await fetch(`${window.location.origin}/api/settings`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentSettings = data.data;
+                    updateCurrentSettingsDisplay();
+                    updateFormValues();
+                } else {
+                    showSettingsStatus('설정 로드 실패: ' + data.message, 'error');
+                }
+            } catch (error) {
+                showSettingsStatus('설정 로드 실패: ' + error.message, 'error');
+                console.error('Failed to load settings:', error);
+            }
+        }
+
+        function populateModelSelects() {
+            if (!availableModels) return;
+
+            const textSelect = document.getElementById('text-model-select');
+            const embeddingSelect = document.getElementById('embedding-model-select');
+
+            // 텍스트 모델 옵션
+            textSelect.innerHTML = availableModels.text_models.map(model => 
+                `<option value="${model}">${model}</option>`
+            ).join('');
+
+            // 임베딩 모델 옵션
+            embeddingSelect.innerHTML = availableModels.embedding_models.map(model => 
+                `<option value="${model}">${model}</option>`
+            ).join('');
+        }
+
+        function updateCurrentSettingsDisplay() {
+            if (!currentSettings) return;
+
+            document.getElementById('current-provider').textContent = currentSettings.current_provider || '-';
+            document.getElementById('current-text-model').textContent = currentSettings.text_model || '-';
+            document.getElementById('current-embedding-model').textContent = currentSettings.embedding_model || '-';
+        }
+
+        function updateFormValues() {
+            if (!currentSettings) return;
+
+            // 모델 선택
+            const textSelect = document.getElementById('text-model-select');
+            const embeddingSelect = document.getElementById('embedding-model-select');
+            
+            if (currentSettings.text_model) {
+                textSelect.value = currentSettings.text_model;
+            }
+            if (currentSettings.embedding_model) {
+                embeddingSelect.value = currentSettings.embedding_model;
+            }
+
+            // 범위 입력
+            const maxTokensSlider = document.getElementById('max-tokens');
+            const temperatureSlider = document.getElementById('temperature');
+            
+            maxTokensSlider.value = currentSettings.max_tokens || 1000;
+            temperatureSlider.value = currentSettings.temperature || 0.7;
+            
+            updateRangeValues();
+        }
+
+        function setupRangeInputs() {
+            const maxTokensSlider = document.getElementById('max-tokens');
+            const temperatureSlider = document.getElementById('temperature');
+
+            maxTokensSlider.addEventListener('input', updateRangeValues);
+            temperatureSlider.addEventListener('input', updateRangeValues);
+        }
+
+        function updateRangeValues() {
+            const maxTokensSlider = document.getElementById('max-tokens');
+            const temperatureSlider = document.getElementById('temperature');
+            
+            document.getElementById('max-tokens-value').textContent = maxTokensSlider.value;
+            document.getElementById('temperature-value').textContent = temperatureSlider.value;
+        }
+
+        async function saveSettings() {
+            try {
+                const textModel = document.getElementById('text-model-select').value;
+                const embeddingModel = document.getElementById('embedding-model-select').value;
+                const maxTokens = parseInt(document.getElementById('max-tokens').value);
+                const temperature = parseFloat(document.getElementById('temperature').value);
+
+                const settings = {
+                    text_model: textModel,
+                    embedding_model: embeddingModel,
+                    max_tokens: maxTokens,
+                    temperature: temperature
+                };
+
+                showSettingsStatus('설정을 저장하는 중...', 'info');
+
+                const response = await fetch(`${window.location.origin}/api/settings`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(settings)
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showSettingsStatus('설정이 성공적으로 저장되었습니다!', 'success');
+                    await loadCurrentSettings(); // 현재 설정 새로고침
+                } else {
+                    showSettingsStatus('설정 저장 실패: ' + data.message, 'error');
+                }
+            } catch (error) {
+                showSettingsStatus('설정 저장 실패: ' + error.message, 'error');
+                console.error('Failed to save settings:', error);
+            }
+        }
+
+        function showSettingsStatus(message, type) {
+            const statusDiv = document.getElementById('settings-status');
+            statusDiv.textContent = message;
+            statusDiv.className = `settings-status ${type}`;
+            
+            // 3초 후 자동으로 숨기기
+            setTimeout(() => {
+                statusDiv.textContent = '';
+                statusDiv.className = 'settings-status';
+            }, 3000);
         }
     </script>
 </body>
