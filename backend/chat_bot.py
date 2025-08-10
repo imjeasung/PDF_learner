@@ -1,5 +1,5 @@
 # AI 질의응답 모듈 (RAG 방식)
-# 사용자 질문에 대해 PDF 내용을 기반으로 답변을 생성합니다.
+# AI Provider Manager를 사용하여 PDF 내용을 기반으로 답변을 생성합니다.
 
 import os
 import json
@@ -7,10 +7,19 @@ import re
 import hashlib
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-import openai
 import chromadb
 from chromadb.config import Settings
 from dotenv import load_dotenv
+
+# AI Provider Manager 임포트
+try:
+    from ai_providers import get_ai_manager
+    from config import settings
+    USE_AI_MANAGER = True
+except ImportError:
+    # 기존 OpenAI 방식으로 폴백
+    import openai
+    USE_AI_MANAGER = False
 
 # 환경변수 로드
 load_dotenv()
@@ -31,17 +40,21 @@ class ChatBot:
         # 필요한 폴더 생성
         Path(self.vector_db_path).mkdir(parents=True, exist_ok=True)
         
-        # OpenAI 설정
-        self.api_key = os.getenv("OPENAI_API_KEY")
-        if not self.api_key:
-            raise ValueError("❌ OPENAI_API_KEY가 .env 파일에 설정되지 않았습니다!")
-        
-        # Initialize OpenAI client
-        self.client = openai.OpenAI(api_key=self.api_key)
-        self.model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
-        self.embedding_model = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-ada-002")
-        self.max_tokens = int(os.getenv("MAX_TOKENS", "1000"))
-        self.temperature = float(os.getenv("TEMPERATURE", "0.7"))
+        # AI Provider Manager 초기화
+        if USE_AI_MANAGER:
+            try:
+                self.ai_manager = get_ai_manager()
+                openai_config = settings.AI_PROVIDERS_CONFIG.get("openai", {})
+                self.model = openai_config.get("default_model", "gpt-3.5-turbo")
+                self.embedding_model = openai_config.get("embedding_model", "text-embedding-ada-002")
+                self.max_tokens = int(os.getenv("MAX_TOKENS", "1000"))
+                self.temperature = float(os.getenv("TEMPERATURE", "0.7"))
+                print(f"🤖 챗봇 초기화 완료 (AI Manager 사용, 모델: {self.model})")
+            except Exception as e:
+                print(f"⚠️ AI Manager 초기화 실패, 기존 방식으로 폴백: {str(e)}")
+                self._init_legacy_openai()
+        else:
+            self._init_legacy_openai()
         
         # ChromaDB 설정
         self.chroma_client = chromadb.PersistentClient(
@@ -53,8 +66,22 @@ class ChatBot:
         
         # 활성화된 문서들의 컬렉션 저장
         self.active_collections = {}
+    
+    def _init_legacy_openai(self):
+        """기존 OpenAI 방식으로 초기화 (폴백용)"""
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        if not self.api_key:
+            raise ValueError("❌ OPENAI_API_KEY가 .env 파일에 설정되지 않았습니다!")
         
-        print(f"🤖 챗봇 초기화 완료 (모델: {self.model})")
+        # Initialize OpenAI client
+        self.client = openai.OpenAI(api_key=self.api_key)
+        self.model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+        self.embedding_model = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-ada-002")
+        self.max_tokens = int(os.getenv("MAX_TOKENS", "1000"))
+        self.temperature = float(os.getenv("TEMPERATURE", "0.7"))
+        self.ai_manager = None
+        
+        print(f"🤖 챗봇 초기화 완료 (레거시 모드, 모델: {self.model})")
     
     def _sanitize_collection_name(self, file_name: str) -> str:
         """
@@ -160,7 +187,7 @@ class ChatBot:
             print(f"  📝 총 {len(documents)}개 텍스트 청크 생성")
             
             # 임베딩 생성 및 저장 (배치 단위로 처리)
-            batch_size = 50
+            batch_size = int(os.getenv("EMBEDDING_BATCH_SIZE", "50"))
             for i in range(0, len(documents), batch_size):
                 end_idx = min(i + batch_size, len(documents))
                 batch_docs = documents[i:end_idx]
@@ -211,18 +238,28 @@ class ChatBot:
     def _generate_embeddings(self, texts: List[str]) -> List[List[float]]:
         """텍스트 리스트의 임베딩을 생성합니다."""
         try:
-            response = self.client.embeddings.create(
-                model=self.embedding_model,
-                input=texts
-            )
-            
-            embeddings = [item.embedding for item in response.data]
-            return embeddings
+            # AI Manager 사용 또는 기존 방식 폴백
+            if self.ai_manager:
+                embedding_result = self.ai_manager.generate_embeddings(
+                    texts=texts,
+                    model=self.embedding_model
+                )
+                # EmbeddingResult 객체에서 실제 임베딩 리스트 추출
+                return embedding_result.embeddings
+            else:
+                response = self.client.embeddings.create(
+                    model=self.embedding_model,
+                    input=texts
+                )
+                
+                embeddings = [item.embedding for item in response.data]
+                return embeddings
             
         except Exception as e:
             print(f"  ⚠️ 임베딩 생성 실패: {str(e)}")
             # 임시로 빈 임베딩 반환
-            return [[0.0] * 1536 for _ in texts]  # ada-002의 차원은 1536
+            embedding_dim = int(os.getenv("EMBEDDING_DIMENSION", "1536"))  # ada-002의 기본 차원
+            return [[0.0] * embedding_dim for _ in texts]
     
     def answer_question(self, question: str, file_name: str = None, top_k: int = 3) -> Dict:
         """
@@ -367,14 +404,25 @@ class ChatBot:
 답변:
 """
 
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=self.max_tokens,
-                temperature=self.temperature
-            )
-            
-            answer = response.choices[0].message.content.strip()
+            # AI Manager 사용 또는 기존 방식 폴백
+            if self.ai_manager:
+                generation_result = self.ai_manager.generate_text(
+                    prompt=prompt,
+                    model=self.model,
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature
+                )
+                # GenerationResult 객체에서 실제 텍스트 추출
+                answer = generation_result.text
+            else:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature
+                )
+                
+                answer = response.choices[0].message.content.strip()
             
             # 신뢰도 계산 (유사도 점수들의 평균)
             if relevant_chunks:
@@ -492,31 +540,8 @@ if __name__ == "__main__":
         chatbot = ChatBot()
         print("✅ 챗봇 초기화 성공")
         
-        # 테스트 데이터로 벡터 DB 생성
-        test_data = {
-            "file_name": "test_chat",
-            "pages": [
-                {
-                    "page_number": 1,
-                    "text": "이것은 테스트 문서입니다. 인공지능과 머신러닝에 대해 설명합니다. AI는 매우 중요한 기술입니다."
-                },
-                {
-                    "page_number": 2,
-                    "text": "딥러닝은 머신러닝의 하위 분야입니다. 신경망을 사용하여 복잡한 패턴을 학습합니다."
-                }
-            ]
-        }
-        
-        # 벡터 DB 생성
-        collection_name = chatbot.create_vector_database(test_data)
-        print(f"✅ 벡터 DB 생성 성공: {collection_name}")
-        
-        # 테스트 질문
-        test_question = "AI에 대해 설명해주세요"
-        result = chatbot.answer_question(test_question)
-        print(f"✅ 답변 생성 성공: {result['answer'][:100]}...")
-        
-        print("🎉 챗봇 테스트 완료!")
+        print("🎉 챗봇 초기화 성공!")
+        print("💡 이 모듈은 main.py에서 import하여 사용됩니다.")
         
     except Exception as e:
         print(f"❌ 챗봇 테스트 실패: {str(e)}")

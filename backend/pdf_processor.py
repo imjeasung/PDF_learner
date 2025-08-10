@@ -274,15 +274,7 @@ def process_single_pdf(pdf_path: str) -> Dict:
     processor = PDFProcessor()
     return processor.extract_pdf_content(pdf_path)
 
-# 테스트용 메인 함수
+# 모듈로 사용될 때는 테스트 코드 없음
 if __name__ == "__main__":
-    # 테스트 코드
-    test_pdf = r"C:\Users\limjeasung\Desktop\클로드코드\pdflearner\uploads\test.pdf"  # 테스트할 PDF 파일 경로
-    
-    if os.path.exists(test_pdf):
-        print("🧪 PDF 처리 테스트 시작...")
-        result = process_single_pdf(test_pdf)
-        print(f"📊 처리 결과: {result['total_pages']}페이지, 텍스트 {len(result['full_text'])}자")
-    else:
-        print(f"❌ 테스트 파일이 없습니다: {test_pdf}")
-        print("💡 uploads/ 폴더에 test.pdf 파일을 넣고 다시 실행해보세요.")
+    print("📄 PDF Processor 모듈")
+    print("💡 이 모듈은 main.py에서 import하여 사용됩니다.")

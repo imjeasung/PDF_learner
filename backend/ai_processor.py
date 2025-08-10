@@ -1,13 +1,22 @@
 # AI 기반 텍스트 분석 및 커리큘럼 생성 모듈
-# OpenAI API를 사용하여 PDF 내용을 분석하고 학습 커리큘럼을 생성합니다.
+# AI Provider Manager를 사용하여 PDF 내용을 분석하고 학습 커리큘럼을 생성합니다.
 
 import os
 import json
 from pathlib import Path
 from typing import Dict, List, Optional
-import openai
 from dotenv import load_dotenv
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+# AI Provider Manager 임포트
+try:
+    from ai_providers import get_ai_manager
+    from config import settings
+    USE_AI_MANAGER = True
+except ImportError:
+    # 기존 OpenAI 방식으로 폴백
+    import openai
+    USE_AI_MANAGER = False
 
 # 환경변수 로드
 load_dotenv()
@@ -28,7 +37,26 @@ class AIProcessor:
         # 필요한 폴더 생성
         Path(self.summaries_folder).mkdir(parents=True, exist_ok=True)
         
-        # OpenAI 설정
+        # AI Provider Manager 초기화
+        if USE_AI_MANAGER:
+            try:
+                self.ai_manager = get_ai_manager()
+                self.model = settings.AI_PROVIDERS_CONFIG.get("openai", {}).get("default_model", "gpt-3.5-turbo")
+                self.max_tokens = int(os.getenv("MAX_TOKENS", "1000"))
+                self.temperature = float(os.getenv("TEMPERATURE", "0.7"))
+                print(f"🤖 AI 처리기 초기화 완료 (AI Manager 사용, 모델: {self.model})")
+            except Exception as e:
+                print(f"⚠️ AI Manager 초기화 실패, 기존 방식으로 폴백: {str(e)}")
+                self._init_legacy_openai()
+        else:
+            self._init_legacy_openai()
+        
+        # 텍스트 분할 설정
+        self.chunk_size = int(os.getenv("CHUNK_SIZE", "1000"))
+        self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "200"))
+    
+    def _init_legacy_openai(self):
+        """기존 OpenAI 방식으로 초기화 (폴백용)"""
         self.api_key = os.getenv("OPENAI_API_KEY")
         if not self.api_key:
             try:
@@ -41,15 +69,12 @@ class AIProcessor:
         self.model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
         self.max_tokens = int(os.getenv("MAX_TOKENS", "1000"))
         self.temperature = float(os.getenv("TEMPERATURE", "0.7"))
-        
-        # 텍스트 분할 설정
-        self.chunk_size = int(os.getenv("CHUNK_SIZE", "1000"))
-        self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "200"))
+        self.ai_manager = None
         
         try:
-            print(f"🤖 AI 처리기 초기화 완료 (모델: {self.model})")
+            print(f"🤖 AI 처리기 초기화 완료 (레거시 모드, 모델: {self.model})")
         except UnicodeEncodeError:
-            print(f"AI 처리기 초기화 완료 (모델: {self.model})")
+            print(f"AI 처리기 초기화 완료 (레거시 모드, 모델: {self.model})")
     
     def create_curriculum(self, extracted_data: Dict) -> Dict:
         """
@@ -172,14 +197,25 @@ class AIProcessor:
 각 섹션은 학습자가 단계적으로 이해할 수 있도록 논리적 순서로 배열해주세요.
 """
 
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=500,
-                temperature=self.temperature
-            )
+            # AI Manager 사용 또는 기존 방식 폴백
+            if self.ai_manager:
+                generation_result = self.ai_manager.generate_text(
+                    prompt=prompt,
+                    model=self.model,
+                    max_tokens=500,
+                    temperature=self.temperature
+                )
+                # GenerationResult 객체에서 실제 텍스트 추출
+                ai_response = generation_result.text
+            else:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=500,
+                    temperature=self.temperature
+                )
+                ai_response = response.choices[0].message.content.strip()
             
-            ai_response = response.choices[0].message.content.strip()
             return self._parse_ai_structure_response(ai_response)
             
         except Exception as e:
@@ -272,14 +308,25 @@ class AIProcessor:
 3. (심화 질문)
 """
 
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=self.max_tokens,
-                temperature=self.temperature
-            )
+            # AI Manager 사용 또는 기존 방식 폴백
+            if self.ai_manager:
+                generation_result = self.ai_manager.generate_text(
+                    prompt=prompt,
+                    model=self.model,
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature
+                )
+                # GenerationResult 객체에서 실제 텍스트 추출
+                ai_response = generation_result.text
+            else:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature
+                )
+                ai_response = response.choices[0].message.content.strip()
             
-            ai_response = response.choices[0].message.content.strip()
             return self._parse_section_response(ai_response, chunks)
             
         except Exception as e:
@@ -368,18 +415,6 @@ if __name__ == "__main__":
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
         sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
     
-    # 간단한 테스트 데이터
-    test_data = {
-        "file_name": "test_document",
-        "total_pages": 5,
-        "toc": [],
-        "full_text": "이것은 테스트용 문서입니다. AI 처리가 정상적으로 작동하는지 확인합니다. 여러 섹션으로 나누어 학습 커리큘럼을 생성할 예정입니다."
-    }
-    
-    try:
-        print("🧪 AI 처리 테스트 시작...")
-        result = create_curriculum_from_pdf(test_data)
-        print(f"📊 처리 결과: {len(result['structure'])}개 섹션 생성됨")
-    except Exception as e:
-        print(f"❌ 테스트 실패: {str(e)}")
-        print("💡 .env 파일에 OPENAI_API_KEY가 올바르게 설정되었는지 확인해주세요.")
+    print("🤖 AI Processor 모듈")
+    print("💡 이 모듈은 main.py에서 import하여 사용됩니다.")
+    print("🔑 OPENAI_API_KEY가 .env 파일에 설정되어 있는지 확인하세요.")
